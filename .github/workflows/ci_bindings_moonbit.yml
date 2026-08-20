@@ -81,6 +81,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy --all-targets -- -D warnings
+          cargo test
 
       - name: Build Rust bridge
         working-directory: bindings/moonbit
@@ -90,7 +91,7 @@ jobs:
         working-directory: bindings/moonbit
         run: cc -std=c11 -Wall -Wextra -Werror -I"$HOME/.moon/include" -fsyntax-only src/opendal_stub.c
 
-      - name: Run native smoke test
+      - name: Run native tests
         working-directory: bindings/moonbit
         env:
           LIBRARY_PATH: ${{ github.workspace }}/bindings/moonbit/target/release

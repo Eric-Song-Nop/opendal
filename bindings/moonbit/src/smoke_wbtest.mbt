@@ -16,9 +16,65 @@
 // under the License.
 
 ///|
-extern "C" fn native_smoke() -> Int = "moonbit_opendal_smoke"
+priv type NativeOperator
 
 ///|
-test "native bridge constructs a memory operator" {
-  assert_eq(native_smoke(), 0)
+priv type NativeResult
+
+///|
+#borrow(scheme)
+extern "C" fn native_operator_new(scheme : Bytes) -> NativeResult = "moonbit_opendal_operator_new"
+
+///|
+#borrow(operator)
+extern "C" fn native_operator_close(operator : NativeOperator) -> Unit = "moonbit_opendal_operator_close"
+
+///|
+#borrow(result)
+extern "C" fn native_result_status(result : NativeResult) -> Int = "moonbit_opendal_result_status"
+
+///|
+#borrow(result)
+extern "C" fn native_result_take_error_message(result : NativeResult) -> Bytes = "moonbit_opendal_result_take_error_message"
+
+///|
+#borrow(result)
+extern "C" fn native_result_take_operator(
+  result : NativeResult,
+) -> NativeOperator = "moonbit_opendal_result_take_operator"
+
+///|
+test "native bridge owns an operator handle" {
+  let result = native_operator_new(b"memory")
+  assert_eq(native_result_status(result), 0)
+  let operator = native_result_take_operator(result)
+  native_operator_close(operator)
+  native_operator_close(operator)
+}
+
+///|
+test "native bridge preserves error messages" {
+  let result = native_operator_new(b"unsupported")
+  assert_eq(native_result_status(result), 1)
+  assert_eq(
+    native_result_take_error_message(result),
+    b"only the memory service is enabled",
+  )
+}
+
+///|
+fn create_unclosed_operator() -> Unit {
+  let result = native_operator_new(b"memory")
+  ignore(native_result_take_operator(result))
+}
+
+///|
+fn leave_result_unconsumed() -> Unit {
+  ignore(native_operator_new(b"unsupported"))
+}
+
+///|
+test "native bridge supports automatic cleanup" {
+  create_unclosed_operator()
+  leave_result_unconsumed()
 }
